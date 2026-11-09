@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Message edit",
+    "description": "Edit a sent user message; forks the session at that point and resends the edited text."
+  }
+}
