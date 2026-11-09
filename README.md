@@ -1,6 +1,8 @@
 # dsh-message-edit
 
-Edit a message you have already sent in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) web UI.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+Edit a message you have already sent in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) web UI — and optionally rewind what that turn did to your files.
 
 ## What it does
 
@@ -18,23 +20,31 @@ Forking branches the conversation, not the filesystem: without extra help the fi
 
 A file is only restored when its current content still matches the recorded turn-end state; a file modified again afterwards is skipped, never clobbered. Binary and oversized files are skipped. An older message (not the last user turn) branches without the rewind option.
 
+## Requirements
+
+- DSH web profile (`dsh web`) — plugin is a Web bundle (Host + Client halves).
+- Works with any provider route; no keys of its own.
+
+## Install
+
+From a checkout of this repository, use the DSH plugin manager with this directory as the target, then refresh the web page and look for the **Edit** button above sent user messages:
+
+```
+install_bundle → /path/to/dsh-message-edit
+```
+
+Once the package is published on npm (this package name is reserved for that), the same command accepts the spec `@haroon0x/dsh-message-edit` instead of a directory.
+
 ## Limitations
 
 - Text-only messages (attachments are not carried over to the branch).
 - Forks create a new session rather than rewriting history in place.
-- Requires the DSH web UI (Client plugin); works with any provider route.
-- Rewind covers files the workspace-changes recorder captured for that turn (shell edits outside git, binary or oversized files, and turns from before a Host restart are not covered).
-
-## Install
-
-Use the DSH plugin manager with this directory (or publish the package and install by name):
-
-```
-plugin_manager → install_bundle → /path/to/dsh-message-edit
-```
-
-Then refresh the DSH web page. The **Edit** button appears above sent user messages.
+- Rewind covers files the workspace-changes recorder captured for that turn; shell edits outside git, binary or oversized files, and turns from before a Host restart are not covered.
 
 ## Uninstall
 
-Disable or remove the `@local/message-edit` bundle via the plugin manager.
+Disable or remove the `@haroon0x/dsh-message-edit` bundle via the plugin manager.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

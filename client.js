@@ -11,7 +11,7 @@
  * state the user remembers at that point.
  */
 window.__ModuleLoader__.load({
-  id: '@local/message-edit',
+  id: '@haroon0x/dsh-message-edit',
   factory(require) {
     const React = require('react');
     const h = React.createElement;

@@ -1,8 +1,27 @@
 {
-  "name": "@local/message-edit",
+  "name": "@haroon0x/dsh-message-edit",
   "version": "1.1.0",
+  "description": "Edit a sent user message in DeepSeek Harness: forks the session at that point, optionally rewinds the files that turn changed, and resends your edited text.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": "haroon0x",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "message-edit",
+    "session-fork",
+    "agent",
+    "llm"
+  ],
+  "homepage": "https://github.com/haroon0x/dsh-message-edit#readme",
+  "bugs": {
+    "url": "https://github.com/haroon0x/dsh-message-edit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haroon0x/dsh-message-edit.git"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
