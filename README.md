@@ -2,23 +2,26 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-Edit a message you have already sent in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) web UI — and optionally rewind what that turn did to your files.
+Edit a message you have already sent in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) web UI — in the same chat or as a branch, and optionally rewind what that turn did to your files.
 
 ## What it does
 
-Adds an **Edit** action above each of your sent user messages. Clicking it opens the message text in an inline editor. Press **Save & branch** to:
+Adds an **Edit** action above each of your sent user messages. Clicking it opens an editor with two destinations:
 
-1. Fork the session at the event just before that message,
-2. Open the resulting branch,
-3. Send your edited text as the first prompt of the branch.
+- **Same chat** (default) — the corrected text is sent as the next message in the current conversation.
+- **New branch** — the session is forked at the event just before that message, the branch opens, and the corrected text is sent there.
 
-The original session and everything after the edited message stays untouched — DSH history is append-only, so editing is implemented as a branch (same semantics as Claude Code's message editing).
+Both modes can first run **Rewind files** (see below), and the branch mode leaves the original session completely untouched.
 
-## File rewind (v2)
+### Why "Same chat" keeps the original visible
 
-Forking branches the conversation, not the filesystem: without extra help the files the original turn touched stay modified on disk. For a message that was the session's **last user turn**, v2 adds an "Also revert the N files this turn changed" option. Reverting restores each file the turn changed to its turn-start content and deletes files the turn created, using the per-turn snapshots the DSH workspace-changes recorder already keeps.
+DSH's transcript is append-only. Model history is a folded surface that surface replacements can change, but replacement copies stay model-only: the chat keeps rendering what you actually sent, by design. So no plugin can rewrite a sent bubble in place — the honest same-conversation option is to send the corrected text as the next turn. Choose **New branch** when you want the conversation to actually continue from the edited message.
 
-A file is only restored when its current content still matches the recorded turn-end state; a file modified again afterwards is skipped, never clobbered. Binary and oversized files are skipped. An older message (not the last user turn) branches without the rewind option.
+## File rewind
+
+Branching (or correcting) does not touch the filesystem: without extra help the files the original turn touched stay modified on disk. For a message that was the session's **last user turn**, the editor adds an "Also revert the N files this turn changed" option. Reverting restores each file the turn changed to its turn-start content and deletes files the turn created, using the per-turn snapshots the DSH workspace-changes recorder already keeps.
+
+A file is only restored when its current content still matches the recorded turn-end state; a file modified again afterwards is skipped, never clobbered. Binary and oversized files are skipped. An older message (not the last user turn) has no rewind option.
 
 ## Requirements
 
@@ -37,8 +40,9 @@ Once the package is published on npm (this package name is reserved for that), t
 
 ## Limitations
 
-- Text-only messages (attachments are not carried over to the branch).
-- Forks create a new session rather than rewriting history in place.
+- Text-only messages (attachments are not carried into a correction or branch).
+- Same-chat edits append the corrected message; the original stays in the transcript.
+- Branches create a new session rather than rewriting history in place.
 - Rewind covers files the workspace-changes recorder captured for that turn; shell edits outside git, binary or oversized files, and turns from before a Host restart are not covered.
 
 ## Uninstall

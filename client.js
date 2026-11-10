@@ -1,14 +1,20 @@
 /**
- * Message edit plugin v2 (client half).
+ * Message edit plugin (client half).
  *
  * Registers a high-priority occupant of the `conversation.chat.user.before`
  * chain slot — the decoration seat above each user bubble — and renders an
- * "Edit" action there. Editing a sent message forks the session at the event
- * just before it, opens the branch, and sends the edited text as the new
- * turn's prompt. When the edited message is the last user turn, the editor
- * also offers to rewind the files that turn changed (via the Host
- * `/api/message-edit.rewind` route), so the branch starts from the file
- * state the user remembers at that point.
+ * "Edit" action there. The editor offers two destinations, same chat first:
+ *
+ * - "Same chat" sends the corrected text as the next turn of this session.
+ *   DSH's transcript is append-only (surface replacement copies stay
+ *   model-only), so the original message cannot be rewritten in place; this
+ *   is the same-conversation alternative to a branch.
+ * - "New branch" forks the session at the event just before the message,
+ *   opens the branch, and sends the corrected text there.
+ *
+ * When the edited message is the session's last user turn, the editor also
+ * offers to rewind the files that turn changed (Host
+ * `/api/message-edit.rewind` route) before either destination runs.
  */
 window.__ModuleLoader__.load({
   id: '@haroon0x/dsh-message-edit',
@@ -22,6 +28,7 @@ window.__ModuleLoader__.load({
       save: 'Save & branch',
       rewind: 'Rewind files',
       branchSend: 'Branch & send',
+      hereSend: 'Send here',
       cancel: 'Cancel',
       failed: 'Edit failed.',
       empty: 'The edited message is empty.',
@@ -29,7 +36,13 @@ window.__ModuleLoader__.load({
       attachments: 'Editing supports text-only messages.',
       rewindLabel: 'Also revert the {n} file(s) this turn changed.',
       rewound: 'Reverted {n} file(s); skipped {m}.',
-      rewindFailed: 'Rewind failed — the branch was not created.',
+      rewindFailed: 'Rewind failed — nothing was sent.',
+      mode: 'Where should the corrected message go',
+      modeHere: 'Same chat',
+      modeHereHint: 'Sends the corrected text as the next message in this conversation.',
+      modeBranch: 'New branch',
+      modeBranchHint: 'Forks the conversation at this message and opens the branch.',
+      hereNote: 'The transcript is append-only, so the original message stays visible.',
     };
 
     function findUserMessage(sessions, sessionId, rpcId) {
@@ -103,6 +116,7 @@ window.__ModuleLoader__.load({
       const [rewind, setRewind] = React.useState(true);
       const [rewound, setRewound] = React.useState(null);
       const [summary, setSummary] = React.useState(undefined);
+      const [mode, setMode] = React.useState('here');
 
       const hit = React.useMemo(
         () => (rpcId ? findUserMessage(sessions, sessionId, rpcId) : undefined),
@@ -138,6 +152,7 @@ window.__ModuleLoader__.load({
         setError(null);
         setRewound(null);
         setRewind(true);
+        setMode('here');
         setText(textOf(content));
         setEditing(true);
       };
@@ -148,29 +163,38 @@ window.__ModuleLoader__.load({
         setRewound(null);
       };
 
-      const branchAndSend = async () => {
+      /** Send the edited text into one session through a short-lived reference. */
+      const sendPrompt = async (targetId) => {
+        const ref = sessions.retain(targetId, { source: 'messageEdit' });
+        try {
+          const res = await ref.binding.session.prompt(
+            [{ type: 'text', text }],
+            'queue',
+          );
+          if (res && res.ok === false) {
+            throw new Error(res.error?.message ?? t('failed'));
+          }
+        } finally {
+          ref.release();
+        }
+      };
+
+      const submit = async () => {
         setBusy(true);
         setError(null);
         try {
-          const seq = hit.event.seq;
-          if (typeof seq !== 'number') throw new Error(t('notLoaded'));
-          const childId = await sessions.fork({
-            sessionId,
-            atSeq: Math.max(0, seq - 1),
-            increaseTitle: true,
-          });
-          uiWorkspace.openSession(childId);
-          const ref = sessions.retain(childId, { source: 'messageEdit' });
-          try {
-            const res = await ref.binding.session.prompt(
-              [{ type: 'text', text }],
-              'queue',
-            );
-            if (res && res.ok === false) {
-              throw new Error(res.error?.message ?? t('failed'));
-            }
-          } finally {
-            ref.release();
+          if (mode === 'branch') {
+            const seq = hit.event.seq;
+            if (typeof seq !== 'number') throw new Error(t('notLoaded'));
+            const childId = await sessions.fork({
+              sessionId,
+              atSeq: Math.max(0, seq - 1),
+              increaseTitle: true,
+            });
+            uiWorkspace.openSession(childId);
+            await sendPrompt(childId);
+          } else {
+            await sendPrompt(sessionId);
           }
           setEditing(false);
         } catch (err) {
@@ -237,6 +261,44 @@ window.__ModuleLoader__.load({
           ? summary.files.length
           : undefined;
       const hasRewind = fileCount !== undefined && fileCount > 0 && rewound === null;
+      const branches = mode === 'branch';
+
+      const noteStyle = {
+        fontSize: '12px',
+        lineHeight: '18px',
+        color: 'var(--dsw-alias-label-tertiary)',
+      };
+
+      const modeOption = (value, labelKey, hintKey) =>
+        h(
+          'label',
+          {
+            key: value,
+            style: {
+              display: 'flex',
+              gap: '6px',
+              alignItems: 'flex-start',
+              cursor: 'pointer',
+              fontSize: '12px',
+              lineHeight: '18px',
+              color: 'var(--dsw-alias-label-secondary)',
+            },
+          },
+          h('input', {
+            type: 'radio',
+            name: `message-edit-mode-${rpcId ?? 'row'}`,
+            checked: mode === value,
+            disabled: busy,
+            onChange: () => setMode(value),
+            style: { marginTop: '3px' },
+          }),
+          h(
+            'span',
+            { style: { display: 'flex', flexDirection: 'column', gap: '1px' } },
+            h('span', { style: { color: 'var(--dsw-alias-label-primary)' } }, t(labelKey)),
+            h('span', { style: noteStyle }, t(hintKey)),
+          ),
+        );
 
       return h(
         'div',
@@ -244,11 +306,15 @@ window.__ModuleLoader__.load({
           style: {
             display: 'flex',
             flexDirection: 'column',
-            gap: '6px',
+            gap: '8px',
             width: '100%',
             minWidth: '260px',
           },
         },
+        h('div', { style: { ...noteStyle, fontWeight: 500 } }, t('mode')),
+        modeOption('here', 'modeHere', 'modeHereHint'),
+        modeOption('branch', 'modeBranch', 'modeBranchHint'),
+        !branches ? h('div', { style: noteStyle }, t('hereNote')) : null,
         h('textarea', {
           value: text,
           rows: 4,
@@ -350,17 +416,21 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               style: primaryStyle,
-              // With a rewind pending, branching waits for it (or for the
-              // user to uncheck the rewind option first).
+              // A pending rewind runs first, so the send waits for it or for
+              // the user to clear the option.
               disabled:
                 busy ||
                 text.trim() === '' ||
                 (rewind && hasRewind && rewound === null),
               onClick: () => {
-                void branchAndSend();
+                void submit();
               },
             },
-            rewind && hasRewind ? t('branchSend') : t('save'),
+            branches
+              ? rewind && hasRewind
+                ? t('branchSend')
+                : t('save')
+              : t('hereSend'),
           ),
         ),
       );

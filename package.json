@@ -1,7 +1,7 @@
 {
   "name": "@haroon0x/dsh-message-edit",
-  "version": "1.1.0",
-  "description": "Edit a sent user message in DeepSeek Harness: forks the session at that point, optionally rewinds the files that turn changed, and resends your edited text.",
+  "version": "1.2.0",
+  "description": "Edit a sent user message in DeepSeek Harness: send the corrected text in the same chat or fork a branch, optionally rewinding the files that turn changed.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -28,13 +28,23 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "client.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   }
 }
